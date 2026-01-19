@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Evaluator</title>
+    
+    <!-- App Icon / Logo -->
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <meta name="theme-color" content="#07140e">
+    <meta property="og:title" content="AI Resume Evaluator">
+    <meta property="og:description" content="Dark green premium AI resume evaluation tool">
+    <meta property="og:image" content="logo.png">
+
+    <style>
+        :root{
+            --bg:#07140e;
+            --panel:#0c2419;
+            --panel-soft:#0f2f21;
+            --accent:#1dd3a7;
+            --accent-dark:#14b08c;
+            --text:#e5f5ef;
+            --muted:#8fbfb0;
+            --danger:#ef4444;
+            --radius:16px;
+        }
+        *{box-sizing:border-box}
+        body{
+            font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+            margin:0;
+            min-height:100vh;
+            background:radial-gradient(circle at 20% 10%,#0f3b2a,transparent 40%),linear-gradient(135deg,#06110c,#0b1f16 40%,#08150f);
+            color:var(--text);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:2rem;
+        }
+        .container{
+            width:100%;
+            max-width:900px;
+            background:linear-gradient(180deg,var(--panel),#081b13);
+            border-radius:24px;
+            padding:3rem 2.5rem;
+            box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 0 0 1px rgba(29,211,167,.15);
+            animation:fadeUp .8s ease;
+        }
+        h1{
+            text-align:center;
+            margin-bottom:2.5rem;
+            font-weight:900;
+            letter-spacing:.5px;
+            background:linear-gradient(90deg,#1dd3a7,#6ee7b7,#1dd3a7);
+            -webkit-background-clip:text;
+            color:transparent;
+        }
+        .input-group{margin-bottom:1.8rem}
+        label{
+            display:block;
+            margin-bottom:.6rem;
+            font-weight:700;
+            color:#b6f5df;
+            letter-spacing:.4px;
+        }
+        textarea{
+            width:100%;
+            height:140px;
+            padding:1rem 1.1rem;
+            border-radius:var(--radius);
+            border:1px solid rgba(29,211,167,.25);
+            background:linear-gradient(180deg,var(--panel-soft),#071a12);
+            color:var(--text);
+            font-size:15px;
+            resize:vertical;
+            transition:.25s ease;
+        }
+        textarea::placeholder{color:#7bbfa9}
+        textarea:focus{
+            outline:none;
+            border-color:var(--accent);
+            box-shadow:0 0 0 3px rgba(29,211,167,.25);
+            transform:translateY(-2px);
+        }
+        button{
+            width:100%;
+            padding:1rem 2rem;
+            border-radius:18px;
+            border:none;
+            cursor:pointer;
+            font-size:18px;
+            font-weight:800;
+            letter-spacing:.5px;
+            color:#062016;
+            background:linear-gradient(135deg,#1dd3a7,#6ee7b7);
+            box-shadow:0 12px 40px rgba(29,211,167,.45);
+            transition:.25s ease;
+        }
+        button:hover:not(:disabled){
+            transform:translateY(-3px) scale(1.02);
+            box-shadow:0 18px 55px rgba(29,211,167,.6);
+        }
+        button:disabled{opacity:.55;cursor:not-allowed}
+        .result{
+            margin-top:3rem;
+            background:linear-gradient(180deg,#0c2419,#071a12);
+            border-radius:22px;
+            padding:2.5rem;
+            display:none;
+            box-shadow:0 20px 60px rgba(0,0,0,.6),inset 0 0 0 1px rgba(29,211,167,.18);
+            animation:fadeUp .6s ease;
+        }
+        .score{
+            font-size:3rem;
+            font-weight:900;
+            text-align:center;
+            margin-bottom:1.5rem;
+        }
+        .score.good{color:#34f5c5}
+        .score.medium{color:#facc15}
+        .score.poor{color:#fb7185}
+        .strengths,.improvements{margin:1.5rem 0}
+        .strengths h3{color:#34f5c5}
+        .improvements h3{color:#fb7185}
+        .strengths p,.improvements p{line-height:1.7;color:#d8f5eb}
+        .error{
+            color:#fecaca;
+            background:rgba(239,68,68,.15);
+            border:1px solid rgba(239,68,68,.4);
+            padding:1rem 1.2rem;
+            border-radius:14px;
+            text-align:center;
+        }
+        @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+        @media(max-width:600px){
+            .container{padding:2rem 1.5rem}
+            .score{font-size:2.3rem}
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Resume Evaluator</h1>
+        <div class="input-group">
+            <label for="jobDesc">Job Description</label>
+            <textarea id="jobDesc" placeholder="Paste the full job description here... (skills, experience, responsibilities)"></textarea>
+        </div>
+        <div class="input-group">
+            <label for="resume">Your Resume</label>
+            <textarea id="resume" placeholder="Paste your full resume here... (text only, no images/PDF)"></textarea>
+        </div>
+        <button id="evaluateBtn">Evaluate Resume</button>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://127.0.0.1:8000';  // Change to your deployed URL later
+
+        document.getElementById('evaluateBtn').addEventListener('click', async () => {
+            const jobDesc = document.getElementById('jobDesc').value.trim();
+            const resume = document.getElementById('resume').value.trim();
+            const btn = document.getElementById('evaluateBtn');
+            const resultDiv = document.getElementById('result');
+
+            if (!jobDesc || !resume) {
+                showError('Please fill both job description and resume.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Evaluating...';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/evaluate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_description: jobDesc, resume: resume })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                showError(`Error: ${error.message}. Check backend is running and CORS enabled.`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Evaluate Resume';
+            }
+        });
+
+        function displayResult(data) {
+            const resultDiv = document.getElementById('result');
+            const score = data.score;
+            const scoreClass = score >= 80 ? 'good' : score >= 50 ? 'medium' : 'poor';
+            const strengths = data.strengths?.join('<br>') || 'None';
+            const improvements = data.improvements?.join('<br>') || 'None';
+
+            resultDiv.innerHTML = `
+                <div class="score ${scoreClass}">${score}/100</div>
+                <div class="strengths">
+                    <h3>Strengths</h3>
+                    <p>${strengths}</p>
+                </div>
+                <div class="improvements">
+                    <h3>Improvements</h3>
+                    <p>${improvements}</p>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showError(message) {
+            document.getElementById('result').innerHTML = `<div class="error">${message}</div>`;
+            document.getElementById('result').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+
